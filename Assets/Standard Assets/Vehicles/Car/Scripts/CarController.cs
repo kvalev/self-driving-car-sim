@@ -68,6 +68,9 @@ namespace UnityStandardAssets.Vehicles.Car
 		private Vector3 saved_position;
 		private Quaternion saved_rotation;
 
+		private Vector3 m_InitialPosition;
+		private Quaternion m_InitialRotation;
+
         public bool Skidding { get; private set; }
 
         public float BrakeInput { get; private set; }
@@ -136,6 +139,9 @@ namespace UnityStandardAssets.Vehicles.Car
         // Use this for initialization
         private void Start ()
         {
+			m_InitialPosition = transform.position;
+			m_InitialRotation = transform.rotation;
+
             m_WheelMeshLocalRotations = new Quaternion[4];
             for (int i = 0; i < 4; i++) {
                 m_WheelMeshLocalRotations [i] = m_WheelMeshes [i].transform.localRotation;
@@ -207,14 +213,41 @@ namespace UnityStandardAssets.Vehicles.Car
             }
         }
 
+		public void Reset()
+		{
+			AccelInput = 0f;
+			BrakeInput = 0f;
+			m_CurrentTorque = 0f;
+
+			for (int i = 0; i < 4; i++) {
+				m_WheelColliders[i].brakeTorque = Mathf.Infinity;
+			}
+
+			m_Rigidbody.isKinematic = true;
+
+			transform.position = m_InitialPosition;
+			transform.rotation = m_InitialRotation;
+
+			CalculateRevs ();
+			GearChanging ();
+
+			AddDownForce ();
+			CheckForWheelSpin ();
+			TractionControl ();
+		}
+
         public void Move (float steering, float accel, float footbrake, float handbrake)
         {
+			m_Rigidbody.isKinematic = false;
+
             for (int i = 0; i < 4; i++) {
                 Quaternion quat;
                 Vector3 position;
                 m_WheelColliders [i].GetWorldPose (out position, out quat);
                 m_WheelMeshes [i].transform.position = position;
                 m_WheelMeshes [i].transform.rotation = quat;
+
+				m_WheelColliders[i].brakeTorque = 0f;
             }
 
             //clamp input values
@@ -334,7 +367,7 @@ namespace UnityStandardAssets.Vehicles.Car
         }
 
 
-        // checks if the wheels are spinning and is so does three things
+        // checks if the wheels are spinning and if so does three things
         // 1) emits particles
         // 2) plays tiure skidding sounds
         // 3) leaves skidmarks on the ground

@@ -22,6 +22,7 @@ public class CommandServer : MonoBehaviour
 		_socket.On("open", OnOpen);
 		_socket.On("steer", OnSteer);
 		_socket.On("manual", OnManual);
+		_socket.On("reset", OnReset);
 		_carController = CarRemoteControl.GetComponent<CarController>();
 	}
 
@@ -47,6 +48,12 @@ public class CommandServer : MonoBehaviour
 		JSONObject jsonObject = obj.data;
 		CarRemoteControl.SteeringAngle = float.Parse(jsonObject.GetField("steering_angle").str);
 		CarRemoteControl.Acceleration = float.Parse(jsonObject.GetField("throttle").str);
+		EmitTelemetry(obj);
+	}
+
+	void OnReset(SocketIOEvent obj)
+	{
+		_carController.Reset();
 		EmitTelemetry(obj);
 	}
 
