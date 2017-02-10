@@ -54,14 +54,31 @@ public class CommandServer : MonoBehaviour
 	{
 		UnityMainThreadDispatcher.Instance().Enqueue(() =>
 		{
-			Vector3 carPosition = _carController.transform.position;
+			// do the ray casting from above the car; when the track is initialized and the car
+			// is dropped from a higher ground, the car position raycast fails
+			Vector3 carPosition = _carController.transform.position + Vector3.up;
 			Ray ray = new Ray(carPosition, Vector3.down);
 
-			RaycastHit hitInfo;
-			bool hit = Physics.Raycast(ray, out hitInfo);
-			bool onTrack = hit && hitInfo.collider.tag == TRACK_TAG;
+			bool onTrack = false;
+			RaycastHit[] hits = Physics.RaycastAll(ray);
+			foreach (var hit in hits) {
+				if (hit.collider.tag == TRACK_TAG) {
+					onTrack = true;
+					break;
+				}
+			}
 
-			print("Attempting to Send...");
+			#if DEBUG
+				if (!onTrack) {
+					Debug.DrawRay(ray.origin, ray.direction * 3, Color.red, 5);
+					Debug.Log(String.Format("Car is not on track. There are {0} ray hits.", hits.Length));
+
+					foreach (var hit in hits) {
+						Debug.Log("Ray hit collider named: " + hit.collider.name);
+					}
+				}
+			#endif
+
 			Dictionary<string, string> data = new Dictionary<string, string>();
 			// send only if it's not being manually driven
 			// duplicates the logic in UISystem
